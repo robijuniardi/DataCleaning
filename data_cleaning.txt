@@ -1,0 +1,49 @@
+#!/bin/bash
+
+DIR = /mnt/d/Pacmann/DataCleaning 
+
+cd /mnt/d/Pacmann/DataCleaning 
+
+sudo unzip data.zip
+
+cd /mnt/d/Pacmann/DataCleaning/data
+
+#filter data pucrhase dari database agar data tidak terlalu besar
+
+csvgrep -c 3 -m purchase 2019-Oct-sample.csv > 2019-Oct-Purchase.csv
+csvgrep -c 3 -m purchase 2019-Nov-sample.csv > 2019-Nov-Purchase.csv
+
+#join filtered data
+csvstack 2019-Oct-Purchase.csv 2019-Nov-Purchase.csv > 2019-Combine-Purcase.csv
+
+#Menghapus kolom tidak terpakai
+csvcut -c 2,3,4,5,6,7,8 2019-Combine-Purcase.csv > 2019-Filtered.csv
+rm 2019-Combine-Purcase.csv
+
+#filter kolom category yang akan displit
+csvcut -c 5 2019-Filtered.csv  >  category_code.csv 
+
+#split category_code 
+cat category_code.csv | awk -F "." '{print $1}' > category_id.csv
+echo "product_name" > product_name.csv
+cat category_code.csv | awk -F "." '{print $2 $3}' >> product_name.csv
+sed -i 1d product_name.csv
+
+#join kolom
+csvjoin category_id.csv product_name.csv > join-category-prod.csv
+csvjoin 2019-Filtered.csv join-category-prod.csv > data-combine.csv
+
+#filter kolom tidak terpakai
+csvcut -c 1,2,3,4,6,7,8,9 data-combine.csv > data_clean.csv
+#rename header table
+sed -i -e '1i "event_time","event_type","product_id","category_id","brand","price","category","product_name"' data_clean.csv
+
+#hapus file tidak terpakai
+rm 2019*
+rm category_*
+rm product*
+rm join-category-prod.csv && rm data-combine.csv
+
+#pindah file data_clean.csv ke folder utama
+mv data_clean.csv /mnt/d/Pacmann/DataCleaning
+
